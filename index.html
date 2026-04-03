@@ -151,6 +151,163 @@ html,body{
   </div>
 </div>
 
+<!-- CHANGED SCRIPT TAG AS REQUESTED -->
+<script src="src/game-bundle.js"></script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>RUNΔX</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060a0e;
+  --fg:#e8eaf0;
+  --red:#ff3232;
+  --red2:#ff6060;
+  --gold:#ffcc00;
+  --dim:#1a2030;
+  --glow:rgba(255,50,50,0.4);
+  --mono:'Share Tech Mono',monospace;
+  --display:'Bebas Neue',sans-serif;
+}
+html,body{
+  width:100%;height:100%;
+  background:var(--bg);
+  color:var(--fg);
+  font-family:var(--mono);
+  overflow:hidden;
+  touch-action:none;
+  user-select:none;
+}
+#c{display:block;width:100%;height:100%;position:fixed;top:0;left:0}
+
+/* HUD */
+#hud{
+  position:fixed;top:0;left:0;right:0;
+  display:flex;justify-content:space-between;
+  padding:12px 20px;
+  pointer-events:none;z-index:10;
+}
+.hud-group{display:flex;flex-direction:column;gap:1px}
+.hud-group.right{align-items:flex-end}
+.hud-lbl{font-size:8px;letter-spacing:3px;color:var(--red);opacity:.65}
+.hud-val{
+  font-family:var(--display);font-size:34px;letter-spacing:2px;
+  color:var(--fg);line-height:1;
+  text-shadow:0 0 20px var(--glow);
+}
+
+/* Screens */
+.screen{
+  position:fixed;inset:0;
+  display:flex;align-items:center;justify-content:center;
+  z-index:20;
+  background:rgba(6,10,14,.9);
+  opacity:0;pointer-events:none;
+  transition:opacity .22s ease;
+  backdrop-filter:blur(6px);
+}
+.screen.on{opacity:1;pointer-events:all}
+.si{display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center;padding:20px}
+
+.logo{
+  font-family:var(--display);
+  font-size:clamp(70px,13vw,120px);
+  letter-spacing:6px;color:var(--fg);
+  text-shadow:0 0 30px var(--glow),0 0 80px var(--glow);
+  animation:flicker 5s infinite;
+}
+.logo span{color:var(--red);text-shadow:0 0 40px var(--glow),0 0 90px var(--glow)}
+.sub{font-size:10px;letter-spacing:4px;color:var(--red);opacity:.6}
+
+.hint{
+  display:flex;align-items:center;gap:10px;
+  font-size:12px;letter-spacing:2px;color:var(--fg);opacity:.55;
+  animation:pulse 2s ease-in-out infinite;
+}
+.key{border:1.5px solid rgba(232,234,240,.35);padding:4px 11px;font-size:10px;letter-spacing:2px;border-radius:3px}
+
+.warn{font-size:9px;letter-spacing:3px;color:var(--red);opacity:.35}
+
+.dead-title{
+  font-family:var(--display);
+  font-size:clamp(56px,11vw,100px);
+  letter-spacing:8px;color:var(--red);
+  text-shadow:0 0 40px var(--glow),0 0 100px var(--glow);
+  animation:shakein .4s ease;
+}
+.stats{
+  display:flex;flex-direction:column;gap:8px;
+  width:240px;
+  border-top:1px solid var(--dim);border-bottom:1px solid var(--dim);
+  padding:14px 0;
+}
+.sr{display:flex;justify-content:space-between;font-size:11px;letter-spacing:2px}
+.sn{color:var(--fg);opacity:.4}
+.sv{color:var(--gold);text-shadow:0 0 10px rgba(255,204,0,.3)}
+.taunt{font-size:10px;letter-spacing:2px;color:var(--fg);opacity:.45;max-width:280px;font-style:italic}
+
+.pause-t{font-family:var(--display);font-size:68px;letter-spacing:8px;opacity:.8}
+.pause-h{font-size:12px;letter-spacing:2px;opacity:.45}
+
+@keyframes flicker{0%,90%,94%,100%{opacity:1}91%,93%{opacity:.5}92%{opacity:.15}}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:.22}}
+@keyframes shakein{0%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}100%{transform:translateX(0)}}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="hud-group">
+    <span class="hud-lbl">DIST</span>
+    <span class="hud-val" id="score-value">0</span>
+  </div>
+  <div class="hud-group right">
+    <span class="hud-lbl">BEST</span>
+    <span class="hud-val" id="best-value">0</span>
+  </div>
+</div>
+
+<div id="s-menu" class="screen on">
+  <div class="si">
+    <div>
+      <div class="logo">RUN<span>Δ</span>X</div>
+      <div class="sub">TRUST NOTHING · SURVIVE EVERYTHING</div>
+    </div>
+    <div class="hint"><div class="key">SPACE</div><span>or tap to begin</span></div>
+    <div class="warn">⚠ THE GAME IS WATCHING YOU ⚠</div>
+  </div>
+</div>
+
+<div id="s-dead" class="screen">
+  <div class="si">
+    <div class="dead-title">YOU DIED</div>
+    <div class="stats">
+      <div class="sr"><span class="sn">DISTANCE</span><span class="sv" id="dead-score">0</span></div>
+      <div class="sr"><span class="sn">BEST</span><span class="sv" id="dead-best">0</span></div>
+      <div class="sr"><span class="sn">JUMPS</span><span class="sv" id="dead-jumps">0</span></div>
+      <div class="sr"><span class="sn">ACCURACY</span><span class="sv" id="dead-acc">0%</span></div>
+    </div>
+    <div class="taunt" id="taunt-line">Try again. Maybe you'll get lucky.</div>
+    <div class="hint"><div class="key">SPACE</div><span>or tap to retry</span></div>
+  </div>
+</div>
+
+<div id="s-pause" class="screen">
+  <div class="si">
+    <div class="pause-t">PAUSED</div>
+    <div class="pause-h">Press P or tap to resume</div>
+  </div>
+</div>
+
 <script src="src/engine.js"></script>
 <script src="src/aisystem.js"></script>
 <script src="src/player.js"></script>
