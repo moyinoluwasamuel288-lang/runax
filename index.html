@@ -9,6 +9,436 @@
 
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
+  --bg:#060a0e; --fg:#e8eaf0; --red:#ff3232; --gold:#ffcc00; --dim:#1a2030; --glow:rgba(255,50,50,0.4);
+  --mono:'Share Tech Mono',monospace; --display:'Bebas Neue',sans-serif;
+}
+html,body{width:100%;height:100%;background:var(--bg);color:var(--fg);font-family:var(--mono);overflow:hidden;touch-action:none;user-select:none;}
+#c{display:block;width:100%;height:100%;position:fixed;top:0;left:0}
+
+/* HUD */
+#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:12px 20px;pointer-events:none;z-index:10;}
+.hud-group{display:flex;flex-direction:column;gap:1px}.hud-group.right{align-items:flex-end}
+.hud-lbl{font-size:8px;letter-spacing:3px;color:var(--red);opacity:.65}
+.hud-val{font-family:var(--display);font-size:34px;letter-spacing:2px;color:var(--fg);line-height:1;text-shadow:0 0 20px var(--glow);}
+
+/* Screens */
+.screen{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:20;background:rgba(6,10,14,.9);opacity:0;pointer-events:none;transition:opacity .22s ease;backdrop-filter:blur(6px);}
+.screen.on{opacity:1;pointer-events:all}
+.si{display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center;padding:20px}
+
+.logo{font-family:var(--display);font-size:clamp(70px,13vw,120px);letter-spacing:6px;color:var(--fg);text-shadow:0 0 30px var(--glow),0 0 80px var(--glow);animation:flicker 5s infinite;}
+.logo span{color:var(--red);text-shadow:0 0 40px var(--glow),0 0 90px var(--glow)}
+.sub{font-size:10px;letter-spacing:4px;color:var(--red);opacity:.6}
+
+.hint{display:flex;align-items:center;gap:10px;font-size:12px;letter-spacing:2px;color:var(--fg);opacity:.55;animation:pulse 2s ease-in-out infinite;}
+.key{border:1.5px solid rgba(232,234,240,.35);padding:4px 11px;font-size:10px;letter-spacing:2px;border-radius:3px}
+
+.warn{font-size:9px;letter-spacing:3px;color:var(--red);opacity:.35}
+
+.dead-title{font-family:var(--display);font-size:clamp(56px,11vw,100px);letter-spacing:8px;color:var(--red);text-shadow:0 0 40px var(--glow),0 0 100px var(--glow);animation:shakein .4s ease;}
+.stats{display:flex;flex-direction:column;gap:8px;width:240px;border-top:1px solid var(--dim);border-bottom:1px solid var(--dim);padding:14px 0;}
+.sr{display:flex;justify-content:space-between;font-size:11px;letter-spacing:2px}
+.sn{color:var(--fg);opacity:.4}.sv{color:var(--gold);text-shadow:0 0 10px rgba(255,204,0,.3)}
+.taunt{font-size:10px;letter-spacing:2px;color:var(--fg);opacity:.45;max-width:280px;font-style:italic}
+
+.pause-t{font-family:var(--display);font-size:68px;letter-spacing:8px;opacity:.8}
+.pause-h{font-size:12px;letter-spacing:2px;opacity:.45}
+
+@keyframes flicker{0%,90%,94%,100%{opacity:1}91%,93%{opacity:.5}92%{opacity:.15}}
+@keyframes pulse{0%,100%{opacity:.55}50%{opacity:.22}}
+@keyframes shakein{0%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}100%{transform:translateX(0)}}
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="hud">
+  <div class="hud-group"><span class="hud-lbl">DIST</span><span class="hud-val" id="score-value">0</span></div>
+  <div class="hud-group right"><span class="hud-lbl">BEST</span><span class="hud-val" id="best-value">0</span></div>
+</div>
+
+<div id="s-menu" class="screen on">
+  <div class="si">
+    <div><div class="logo">RUN<span>Δ</span>X</div><div class="sub">TRUST NOTHING · SURVIVE EVERYTHING</div></div>
+    <div class="hint"><div class="key">SPACE</div><span>or tap to begin</span></div>
+    <div class="warn">⚠ THE GAME IS WATCHING YOU ⚠</div>
+  </div>
+</div>
+
+<div id="s-dead" class="screen">
+  <div class="si">
+    <div class="dead-title">YOU DIED</div>
+    <div class="stats">
+      <div class="sr"><span class="sn">DISTANCE</span><span class="sv" id="dead-score">0</span></div>
+      <div class="sr"><span class="sn">BEST</span><span class="sv" id="dead-best">0</span></div>
+      <div class="sr"><span class="sn">JUMPS</span><span class="sv" id="dead-jumps">0</span></div>
+      <div class="sr"><span class="sn">ACCURACY</span><span class="sv" id="dead-acc">0%</span></div>
+    </div>
+    <div class="taunt" id="taunt-line">Try again. Maybe you'll get lucky.</div>
+    <div class="hint"><div class="key">SPACE</div><span>or tap to retry</span></div>
+  </div>
+</div>
+
+<div id="s-pause" class="screen">
+  <div class="si">
+    <div class="pause-t">PAUSED</div>
+    <div class="pause-h">Press P or tap to resume</div>
+  </div>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════
+// RUNΔX — Full Game with Upgraded Chaos System (Single File)
+// ═══════════════════════════════════════════════════════
+
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize(){
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Engine Core
+const Engine = {
+  initAudio(){},
+  getSize(){ return {W, H}; },
+  showScreen(id){
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('on'));
+    if(id) document.getElementById(id).classList.add('on');
+  },
+  setPaused(p){},
+  start(update, draw){ this.updateFn = update; this.drawFn = draw; requestAnimationFrame(loop); },
+  stop(){},
+  playJump(){},
+  playLand(){},
+  playDeath(){},
+  playChaosWarningSting(){},
+  playChaosActiveSting(){},
+  playChaosEndSting(){},
+  shake(a=12, d=350){},
+  flash(c='#ff3232', a=0.6){}
+};
+
+// AI System with Performance-based Chaos
+const AI = (() => {
+  let m = { jumpsAttempted:0, jumpsSuccessful:0, deaths:0, survivalTime:0, reactionTimes:[], consecutiveSaves:0, lastDeathTime:0 };
+  let adj = { speedMul:1, jumpMod:1, gravMod:1, timingBias:0, unpredictability:0, betrayalPending:false, betrayalCD:0, repeatCount:0, lastType:null, history:[] };
+  let chaos = { phase:0, timer:0, warningDuration:2.0, activeDuration:4.5, cooldownDuration:8.0 };
+
+  function reset() {
+    m = { jumpsAttempted:0, jumpsSuccessful:0, deaths:0, survivalTime:0, reactionTimes:[], consecutiveSaves:0, lastDeathTime:0 };
+    adj = { speedMul:1, jumpMod:1, gravMod:1, timingBias:0, unpredictability:0, betrayalPending:false, betrayalCD:0, repeatCount:0, lastType:null, history:[] };
+    chaos.phase = 0; chaos.timer = 0;
+  }
+
+  function update(dt) {
+    m.survivalTime += dt;
+    if (adj.betrayalCD > 0) adj.betrayalCD -= dt;
+
+    if (chaos.phase > 0) {
+      chaos.timer -= dt;
+      if (chaos.timer <= 0) advanceChaosPhase();
+    }
+
+    if (chaos.phase === 0 && canTriggerChaos()) startChaosWarning();
+
+    const t = m.survivalTime;
+    let spd = 1 + (t/50)*0.65 + (t/140)*0.4;
+    spd = Math.min(spd, 3.3);
+    if (getAccuracy() > 0.82 && m.consecutiveSaves > 6) spd += 0.25;
+    adj.speedMul += (spd - adj.speedMul) * 0.008;
+
+    const drift = Math.sin(t*0.28)*0.09 + Math.cos(t*0.19)*0.06;
+    adj.jumpMod = chaos.phase === 2 ? 1 + drift*1.4 : 1 + drift;
+    adj.gravMod = 1 - drift*0.5;
+
+    adj.unpredictability = Math.min(1, (t-25)/90);
+    if (chaos.phase === 2) adj.unpredictability = Math.max(adj.unpredictability, 0.85);
+  }
+
+  function canTriggerChaos() {
+    if (m.survivalTime < 38) return false;
+    if (getAccuracy() < 0.78) return false;
+    if (m.consecutiveSaves < 5) return false;
+    if (m.survivalTime - m.lastDeathTime < 26) return false;
+    return Math.random() < 0.038 + (m.survivalTime / 200) * 0.03;
+  }
+
+  function startChaosWarning() {
+    chaos.phase = 1;
+    chaos.timer = chaos.warningDuration;
+  }
+
+  function advanceChaosPhase() {
+    if (chaos.phase === 1) { chaos.phase = 2; chaos.timer = chaos.activeDuration; }
+    else if (chaos.phase === 2) { chaos.phase = 3; chaos.timer = chaos.cooldownDuration; }
+    else if (chaos.phase === 3) { chaos.phase = 0; chaos.timer = 0; }
+  }
+
+  function getChaosState() {
+    const isWarning = chaos.phase === 1;
+    const isActive = chaos.phase === 2;
+    let intensity = 0;
+    if (isWarning) intensity = (chaos.warningDuration - chaos.timer) / chaos.warningDuration;
+    if (isActive) intensity = 1;
+
+    return {
+      phase: chaos.phase,
+      isWarning, isActive, isCooldown: chaos.phase === 3,
+      intensity, timer: chaos.timer,
+      activeDuration: chaos.activeDuration,
+      jumpInverted: isActive
+    };
+  }
+
+  function recordJump(ts) { m.jumpsAttempted++; }
+  function recordSuccess() { m.jumpsSuccessful++; m.consecutiveSaves++; }
+  function recordDeath() {
+    m.deaths++; m.consecutiveSaves = 0; m.lastDeathTime = m.survivalTime;
+    if (chaos.phase !== 0) { chaos.phase = 3; chaos.timer = chaos.cooldownDuration * 0.6; }
+  }
+  function queryNextObstacle() {
+    const cs = getChaosState();
+    return {
+      betrayal: false,
+      fakeDecoy: cs.isActive && Math.random() < 0.45,
+      timingShift: 0
+    };
+  }
+
+  function getAccuracy() { return m.jumpsAttempted === 0 ? 1 : m.jumpsSuccessful / m.jumpsAttempted; }
+  function getMetrics() { return m; }
+  function getSpeedMultiplier() { return adj.speedMul; }
+  function getPhysicsMods() { return {jumpMod: adj.jumpMod, gravityMod: adj.gravMod}; }
+  function getTaunt() { return "We saw you getting comfortable."; }
+
+  return { reset, update, recordJump, recordSuccess, recordDeath, queryNextObstacle, getChaosState, getAccuracy, getMetrics, getSpeedMultiplier, getPhysicsMods, getTaunt };
+})();
+
+// Player
+const Player = (() => {
+  const BASE_JUMP_VEL = -620, BASE_GRAVITY = 1800, SIZE_W = 26, SIZE_H = 28;
+  let x, y, vy, onGround = true, alive = true, groundY = 0;
+  let trailPoints = [], deathTimer = 0, landSquash = 1, jumpStretch = 1, tiltAngle = 0;
+  let jumpInverted = false;
+
+  function init(h) {
+    groundY = h * 0.72;
+    x = h * 0.15; y = groundY; vy = 0;
+    onGround = true; alive = true;
+    trailPoints = []; deathTimer = 0;
+    landSquash = 1; jumpStretch = 1; tiltAngle = 0;
+    jumpInverted = false;
+  }
+
+  function jump() {
+    if (!alive || !onGround || jumpInverted) return false;
+    vy = BASE_JUMP_VEL * AI.getPhysicsMods().jumpMod;
+    onGround = false;
+    jumpStretch = 0.65;
+    AI.recordJump(0);
+    return true;
+  }
+
+  function die() {
+    if (!alive) return;
+    alive = false;
+    deathTimer = 1.2;
+    AI.recordDeath();
+  }
+
+  function update(dt) {
+    if (!alive) { deathTimer = Math.max(0, deathTimer - dt); return; }
+    const mods = AI.getPhysicsMods();
+    vy += BASE_GRAVITY * mods.gravityMod * dt;
+    y += vy * dt;
+    if (y >= groundY) {
+      y = groundY; vy = 0; onGround = true;
+      if (vy > 0) landSquash = 0.55;
+    } else onGround = false;
+
+    landSquash += (1 - landSquash) * dt * 14;
+    jumpStretch += (1 - jumpStretch) * dt * 10;
+    tiltAngle += ((onGround ? 0 : Math.min(0.35, vy / 2000)) - tiltAngle) * dt * 8;
+  }
+
+  function draw(ctx) {
+    if (!alive && deathTimer <= 0) return;
+    // Simple player rendering (red box with eye)
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = '#ff3b3b';
+    ctx.fillRect(-SIZE_W/2, -SIZE_H, SIZE_W, SIZE_H);
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(SIZE_W*0.18, -SIZE_H*0.7, 4, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  }
+
+  return { init, jump, die, update, draw, getBounds: () => ({x: x-SIZE_W/2+4, y: y-SIZE_H, w: SIZE_W-8, h: SIZE_H-2}), isAlive: () => alive, setJumpInverted: (v) => jumpInverted = v, setGroundY: (gy) => groundY = gy };
+})();
+
+// Obstacles (simplified)
+const Obstacles = (() => {
+  let pool = [], scrollX = 0, nextSpawnX = 0, groundY = 0, canvasW = 0;
+
+  function init(gY, cW) {
+    pool = []; scrollX = 0; groundY = gY; canvasW = cW; nextSpawnX = cW + 200;
+  }
+
+  function update(dt, speed) {
+    scrollX += speed * dt;
+    pool.forEach(o => o.x -= speed * dt);
+    pool = pool.filter(o => o.x > -50);
+    while (nextSpawnX - scrollX < canvasW + 300) {
+      const type = Math.random() < 0.3 ? 'decoy' : 'spike';
+      pool.push({ x: nextSpawnX, w: 28, h: 44, safe: type === 'decoy' });
+      nextSpawnX += 380 + Math.random() * 80;
+    }
+  }
+
+  function checkCollision(pb) {
+    for (let ob of pool) {
+      if (ob.safe) continue;
+      if (pb.x < ob.x + ob.w && pb.x + pb.w > ob.x && pb.y < groundY && pb.y + pb.h > groundY - ob.h) {
+        return ob;
+      }
+    }
+    return null;
+  }
+
+  function draw(ctx) {
+    ctx.fillStyle = '#ff3b3b';
+    pool.forEach(ob => {
+      ctx.fillRect(ob.x, groundY - ob.h, ob.w, ob.h);
+    });
+  }
+
+  return { init, update, draw, checkCollision, setGroundY: (gy) => groundY = gy };
+})();
+
+// Main Game Loop
+let state = 0; // 0=menu, 1=playing, 2=dead, 3=paused
+let score = 0, bestScore = parseInt(localStorage.getItem('runax_best') || '0');
+let worldScrollX = 0, groundY = 0;
+
+function init() {
+  groundY = H * 0.72;
+  Player.init(H);
+  Obstacles.init(groundY, W);
+  AI.reset();
+  score = 0; worldScrollX = 0;
+  document.getElementById('best-value').textContent = bestScore;
+  Engine.showScreen('s-menu');
+}
+
+function startGame() {
+  groundY = H * 0.72;
+  Player.init(H);
+  Obstacles.init(groundY, W);
+  AI.reset();
+  score = 0; worldScrollX = 0;
+  state = 1;
+  Engine.showScreen(null);
+  lastTs = performance.now();
+  requestAnimationFrame(loop);
+}
+
+function gameOver() {
+  state = 2;
+  if (score > bestScore) {
+    bestScore = score;
+    localStorage.setItem('runax_best', bestScore);
+  }
+  document.getElementById('dead-score').textContent = score;
+  document.getElementById('dead-best').textContent = bestScore;
+  document.getElementById('dead-jumps').textContent = "0";
+  document.getElementById('dead-acc').textContent = "0%";
+  document.getElementById('taunt-line').textContent = AI.getTaunt();
+  setTimeout(() => Engine.showScreen('s-dead'), 400);
+}
+
+let lastTs = 0;
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = Math.min((ts - lastTs)/1000, 0.05);
+  lastTs = ts;
+
+  if (state === 1) {
+    const speed = 280 * AI.getSpeedMultiplier();
+    worldScrollX += speed * dt;
+    AI.update(dt);
+    Player.update(dt);
+    Obstacles.update(dt, speed);
+    score = Math.floor(worldScrollX / 40);
+
+    document.getElementById('score-value').textContent = score;
+
+    if (Player.isAlive()) {
+      const hit = Obstacles.checkCollision(Player.getBounds());
+      if (hit) {
+        Player.die();
+        setTimeout(gameOver, 300);
+      }
+    }
+  }
+
+  // Render
+  ctx.fillStyle = '#060a0e';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground
+  ctx.fillStyle = '#0f1520';
+  ctx.fillRect(0, groundY, W, H - groundY);
+
+  Obstacles.draw(ctx);
+  Player.draw(ctx);
+
+  // Simple Chaos visual
+  const cs = AI.getChaosState();
+  if (cs.intensity > 0) {
+    ctx.globalAlpha = cs.intensity * 0.3;
+    ctx.fillStyle = cs.isActive ? '#3b1a1a' : '#ffaa00';
+    ctx.fillRect(0, 0, W, H);
+    ctx.globalAlpha = 1;
+  }
+}
+
+document.addEventListener('keydown', e => {
+  if (e.code === 'Space' || e.code === 'ArrowUp') {
+    e.preventDefault();
+    if (state === 0) startGame();
+    else if (state === 1) Player.jump();
+    else if (state === 2) startGame();
+  }
+});
+
+document.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (state === 0) startGame();
+  else if (state === 1) Player.jump();
+  else if (state === 2) startGame();
+});
+
+init();
+</script>
+
+</body>
+</html><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>RUNΔX</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Bebas+Neue&display=swap');
+
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
   --bg:#060a0e;
   --fg:#e8eaf0;
   --red:#ff3232;
