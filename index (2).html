@@ -1,28 +1,25 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
-  <title>RUNΔX — Don't Trust Anything</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <title>RUNΔX</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
+  <canvas id="gameCanvas"></canvas>
 
-  <!-- HUD (over canvas, pointer-events off) -->
   <div id="ui-overlay">
     <div id="score-panel">
-      <span id="score-label">DIST</span>
-      <span id="score-value">0</span>
+      <div id="score-label">DIST</div>
+      <div id="score-value">0</div>
     </div>
     <div id="best-panel">
-      <span id="best-label">BEST</span>
-      <span id="best-value">0</span>
+      <div id="best-label">BEST</div>
+      <div id="best-value">0</div>
     </div>
   </div>
 
-  <canvas id="gameCanvas"></canvas>
-
-  <!-- Start screen -->
+  <!-- Start Screen -->
   <div id="screen-start" class="screen active">
     <div class="screen-inner">
       <div class="logo-block">
@@ -30,62 +27,40 @@
         <div class="logo-sub">TRUST NOTHING. SURVIVE EVERYTHING.</div>
       </div>
       <div class="start-hint">
-        <div class="key-icon">SPACE</div>
-        <span>or tap to begin</span>
+        <span class="key-icon">SPACE</span> or tap to begin
       </div>
       <div class="warning-text">⚠ The game is watching you ⚠</div>
     </div>
   </div>
 
-  <!-- Death screen -->
+  <!-- Death Screen -->
   <div id="screen-dead" class="screen">
     <div class="screen-inner">
       <div class="dead-title">YOU DIED</div>
       <div class="dead-stats">
-        <div class="stat-row">
-          <span class="stat-name">DISTANCE</span>
-          <span class="stat-val" id="dead-score">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-name">BEST</span>
-          <span class="stat-val" id="dead-best">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-name">JUMPS</span>
-          <span class="stat-val" id="dead-jumps">0</span>
-        </div>
-        <div class="stat-row">
-          <span class="stat-name">ACCURACY</span>
-          <span class="stat-val" id="dead-acc">0%</span>
-        </div>
-        <!-- Shown only when player has survived ≥1 chaos cycle -->
-        <div class="stat-row" id="chaos-row" style="display:none">
-          <span class="stat-name">CHAOS SURVIVED</span>
-          <span class="stat-val chaos-val" id="dead-chaos">0</span>
+        <div class="stat-row"><span class="stat-name">DISTANCE</span><span id="dead-score" class="stat-val">0</span></div>
+        <div class="stat-row"><span class="stat-name">BEST</span><span id="dead-best" class="stat-val">0</span></div>
+        <div class="stat-row"><span class="stat-name">JUMPS</span><span id="dead-jumps" class="stat-val">0</span></div>
+        <div class="stat-row"><span class="stat-name">ACCURACY</span><span id="dead-acc" class="stat-val">0%</span></div>
+        <div id="chaos-row" class="stat-row" style="display:none;">
+          <span class="stat-name">CHAOS SURVIVED</span><span id="dead-chaos" class="stat-val chaos-val">0</span>
         </div>
       </div>
-      <div class="taunt-text" id="taunt-line">Try again. Maybe you'll get lucky.</div>
+      <div id="taunt-line" class="taunt-text">Try again. Maybe you'll get lucky.</div>
       <div class="restart-hint">
-        <div class="key-icon">SPACE</div>
-        <span>or tap to retry</span>
+        <span class="key-icon">SPACE</span> or tap to retry
       </div>
     </div>
   </div>
 
-  <!-- Pause screen -->
+  <!-- Pause Screen -->
   <div id="screen-pause" class="screen">
     <div class="screen-inner">
       <div class="pause-title">PAUSED</div>
-      <div class="pause-hint">Press <strong>P</strong> or tap to resume</div>
+      <div class="pause-hint">Press P or tap to resume</div>
     </div>
   </div>
 
-  <!-- Scripts — order matters (dependencies first) -->
-  <script src="engine.js"></script>
-  <script src="aiSystem.js"></script>
-  <script src="player.js"></script>
-  <script src="obstacles.js"></script>
-  <script src="game.js"></script>
-
+  <script type="module" src="js/main.js"></script>
 </body>
 </html>
