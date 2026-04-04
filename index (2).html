@@ -2,12 +2,32 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+
+  <!-- ✅ MOBILE FIX -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>RUNΔX</title>
   <link rel="stylesheet" href="style.css">
+
+  <style>
+    /* Optional: prevent scroll on mobile */
+    body {
+      margin: 0;
+      overflow: hidden;
+      touch-action: none;
+      background: black;
+    }
+
+    canvas {
+      display: block;
+    }
+  </style>
 </head>
+
 <body>
   <canvas id="gameCanvas"></canvas>
 
+  <!-- UI OVERLAY -->
   <div id="ui-overlay">
     <div id="score-panel">
       <div id="score-label">DIST</div>
@@ -19,7 +39,7 @@
     </div>
   </div>
 
-  <!-- Start Screen -->
+  <!-- START SCREEN -->
   <div id="screen-start" class="screen active">
     <div class="screen-inner">
       <div class="logo-block">
@@ -33,27 +53,39 @@
     </div>
   </div>
 
-  <!-- Death Screen -->
+  <!-- DEATH SCREEN -->
   <div id="screen-dead" class="screen">
     <div class="screen-inner">
       <div class="dead-title">YOU DIED</div>
+
       <div class="dead-stats">
         <div class="stat-row"><span class="stat-name">DISTANCE</span><span id="dead-score" class="stat-val">0</span></div>
         <div class="stat-row"><span class="stat-name">BEST</span><span id="dead-best" class="stat-val">0</span></div>
         <div class="stat-row"><span class="stat-name">JUMPS</span><span id="dead-jumps" class="stat-val">0</span></div>
         <div class="stat-row"><span class="stat-name">ACCURACY</span><span id="dead-acc" class="stat-val">0%</span></div>
+
         <div id="chaos-row" class="stat-row" style="display:none;">
-          <span class="stat-name">CHAOS SURVIVED</span><span id="dead-chaos" class="stat-val chaos-val">0</span>
+          <span class="stat-name">CHAOS SURVIVED</span>
+          <span id="dead-chaos" class="stat-val chaos-val">0</span>
         </div>
       </div>
-      <div id="taunt-line" class="taunt-text">Try again. Maybe you'll get lucky.</div>
+
+      <!-- ✅ ADD PROGRESSION HOOK -->
+      <div id="progress-hint" class="taunt-text">
+        You were close… Chaos unlocks soon.
+      </div>
+
+      <div id="taunt-line" class="taunt-text">
+        Try again. Maybe you'll get lucky.
+      </div>
+
       <div class="restart-hint">
         <span class="key-icon">SPACE</span> or tap to retry
       </div>
     </div>
   </div>
 
-  <!-- Pause Screen -->
+  <!-- PAUSE SCREEN -->
   <div id="screen-pause" class="screen">
     <div class="screen-inner">
       <div class="pause-title">PAUSED</div>
@@ -61,6 +93,15 @@
     </div>
   </div>
 
+  <!-- ✅ LOAD GAME FILES (ORDER MATTERS) -->
+  <script src="js/player.js"></script>
+  <script src="js/obstacles.js"></script>
+
+  <!-- ✅ AI SYSTEM (SAFE TO DELETE LATER) -->
+  <script src="js/aiPlayer.js"></script>
+
+  <!-- MAIN GAME -->
   <script type="module" src="js/main.js"></script>
+
 </body>
 </html>
