@@ -1,31 +1,30 @@
-// aiGodMode.js
-// Temporary AI that plays perfectly and NEVER loses
+// js/aiGodMode.js
 
 class AIGodMode {
-    constructor(player, obstacles) {
+    constructor(player, obstacles, canvas) {
         this.player = player;
         this.obstacles = obstacles;
+        this.canvas = canvas;
         this.enabled = false;
     }
 
     toggle() {
         this.enabled = !this.enabled;
-        console.log("GOD AI:", this.enabled ? "ENABLED" : "DISABLED");
+        console.log("GOD AI:", this.enabled ? "ON" : "OFF");
     }
 
     update() {
         if (!this.enabled) return;
 
-        this.avoidEverything();
-        this.preventDeath();
+        this.dodge();
+        this.keepAlive();
     }
 
-    avoidEverything() {
+    dodge() {
         let closest = null;
         let minDist = Infinity;
 
         for (let obs of this.obstacles) {
-            let dx = obs.x - this.player.x;
             let dy = obs.y - this.player.y;
 
             if (dy > 0 && dy < minDist) {
@@ -38,26 +37,25 @@ class AIGodMode {
 
         let dx = closest.x - this.player.x;
 
-        // Smooth dodge instead of jumpy movement
         if (Math.abs(dx) < 80) {
             if (dx > 0) {
-                this.player.x -= 6; // move left
+                this.player.x -= 6;
             } else {
-                this.player.x += 6; // move right
+                this.player.x += 6;
             }
         }
     }
 
-    preventDeath() {
-        // Hard override: keep player inside safe bounds
-        if (this.player.x < 50) this.player.x = 50;
-        if (this.player.x > window.innerWidth - 50) {
-            this.player.x = window.innerWidth - 50;
+    keepAlive() {
+        // Keep inside screen
+        if (this.player.x < 20) this.player.x = 20;
+        if (this.player.x > this.canvas.width - 60) {
+            this.player.x = this.canvas.width - 60;
         }
 
-        // OPTIONAL: disable falling logic if exists
-        if (this.player.y > window.innerHeight) {
-            this.player.y = window.innerHeight / 2;
+        // Prevent falling
+        if (this.player.y > this.canvas.height) {
+            this.player.y = this.canvas.height / 2;
         }
     }
 }
