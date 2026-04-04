@@ -1,4 +1,27 @@
-/* ── RUNΔX · player.js ────────────────────────────────
+// js/player.js
+
+class Player {
+    constructor(x, y) {
+        this.x = x;
+        this.y = y;
+
+        this.width = 40;
+        this.height = 40;
+    }
+
+    moveLeft() {
+        this.x -= 40;
+    }
+
+    moveRight() {
+        this.x += 40;
+    }
+
+    draw(ctx) {
+        ctx.fillStyle = "white";
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+    }
+}/* ── RUNΔX · player.js ────────────────────────────────
    Player entity: rendering, physics, jump logic.
    Controls are NEVER inverted — that mechanic has been
    fully removed from Chaos Mode.
