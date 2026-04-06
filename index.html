@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RUNΔX — Endless Runner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+
+  <!-- HUD Layer -->
+  <div id="hud">
+    <div id="score-panel">
+      <div class="score-block">
+        <span class="score-label">SCORE</span>
+        <span id="score-val">0</span>
+      </div>
+      <div class="score-block">
+        <span class="score-label">BEST</span>
+        <span id="best-val">0</span>
+      </div>
+    </div>
+    <div id="status-panel">
+      <span id="powerup-indicator" class="hidden"></span>
+      <span id="ai-badge" class="hidden">🤖 AI</span>
+    </div>
+  </div>
+
+  <!-- Start Screen -->
+  <div id="screen-start" class="screen active">
+    <div class="screen-card">
+      <h1 class="game-title">RUN<span class="accent">Δ</span>X</h1>
+      <p class="subtitle">ENDLESS VELOCITY</p>
+      <div class="key-hints">
+        <div class="hint"><kbd>SPACE</kbd> Jump</div>
+        <div class="hint"><kbd>G</kbd> Toggle AI</div>
+      </div>
+      <button class="btn-primary" id="btn-start">START</button>
+      <div id="start-best" class="best-label">BEST: <span>0</span></div>
+    </div>
+  </div>
+
+  <!-- Game Over Screen -->
+  <div id="screen-over" class="screen">
+    <div class="screen-card">
+      <h2 class="over-title">GAME OVER</h2>
+      <div class="over-scores">
+        <div class="over-score-row">
+          <span>SCORE</span><span id="over-score">0</span>
+        </div>
+        <div class="over-score-row best-row">
+          <span>BEST</span><span id="over-best">0</span>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn-primary" id="btn-restart">RETRY</button>
+        <button class="btn-secondary" id="btn-share">SHARE</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden">Copied to clipboard!</div>
+
+  <script type="module" src="engine.js"></script>
+</body>
+</html>
