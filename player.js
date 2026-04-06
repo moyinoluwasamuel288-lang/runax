@@ -1,281 +1,100 @@
-/* ── RUNΔX · player.js ────────────────────────────────
-   Player entity: rendering, physics, jump logic.
-   Controls are NEVER inverted — that mechanic has been
-   fully removed from Chaos Mode.
-──────────────────────────────────────────────────────── */
-
-const Player = (() => {
-
-  /* ── Constants ── */
-  const BASE_JUMP_VEL = -620;
-  const BASE_GRAVITY  = 1800;
-  const SIZE_W        = 26;
-  const SIZE_H        = 28;
-
-  /* ── State ── */
-  let x, y, vy;
-  let onGround = false;
-  let alive    = true;
-  let groundY  = 0;
-
-  /* ── Visual ── */
-  let trailPoints = [];
-  let deathTimer  = 0;
-  let landSquash  = 1;   // squash on landing
-  let jumpStretch = 1;   // stretch on jump
-  let tiltAngle   = 0;   // forward lean during fall
-
-  /* ── Death particles ─────────────────────────────────
-     20 sparks burst from the player's centre on death.
-     Each has a random velocity, size, colour hue offset,
-     and alpha that fades over ~0.6 s. Purely cosmetic.
-  ──────────────────────────────────────────────────────── */
-  let deathParticles = [];
-
-  function _spawnDeathParticles(px, py) {
-    deathParticles = [];
-    for (let i = 0; i < 22; i++) {
-      const angle = (Math.PI * 2 * i) / 22 + (Math.random() - 0.5) * 0.4;
-      const speed = 80 + Math.random() * 200;
-      deathParticles.push({
-        x:  px, y:  py - SIZE_H / 2,   // emit from player centre
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed - 60, // slight upward bias
-        size:  2 + Math.random() * 4,
-        alpha: 0.9 + Math.random() * 0.1,
-        // hue shift: mostly red (0) with some orange-yellow splashes
-        hue: Math.random() < 0.7 ? 0 : 20 + Math.random() * 20,
-      });
-    }
-  }
-
-  /* ── Reaction timing ── */
-  let lastObstacleVisibleTs = 0;
-
-  /* ─────────────────────────────────────────────────── */
-
-  function init(canvasH) {
-    groundY  = canvasH * 0.72;
-    x        = canvasH * 0.15;
-    y        = groundY;
-    vy       = 0;
-    onGround = true;
-    alive    = true;
-    trailPoints             = [];
-    deathTimer              = 0;
-    landSquash              = 1;
-    jumpStretch             = 1;
-    tiltAngle               = 0;
-    lastObstacleVisibleTs   = 0;
-    deathParticles          = [];
-  }
-
-  function setObstacleVisible(ts) {
-    lastObstacleVisibleTs = ts;
-  }
-
-  /* ── Jump ── */
-  function jump() {
-    if (!alive)    return false;
-    if (!onGround) return false;   // no double-jump
-
-    const mods    = AISystem.getPhysicsMods();
-    const jumpVel = BASE_JUMP_VEL * mods.jumpMod;
-
-    vy          = jumpVel;
-    onGround    = false;
-    jumpStretch = 0.65;
-
-    AISystem.recordJump(lastObstacleVisibleTs);
-    lastObstacleVisibleTs = 0;
-
-    Engine.playJump();
-    return true;
-  }
-
-  /* ── Death ── */
-  function die() {
-    if (!alive) return;
-    alive      = false;
-    deathTimer = 1.2;
-    _spawnDeathParticles(x, y);
-    Engine.playDeath();
-    Engine.shake(14, 420);
-    Engine.flash('#ff3b3b', 0.6);
-    AISystem.recordDeath(x);
-  }
-
-  /* ── Physics update ── */
-  function update(dt) {
-    if (!alive) {
-      deathTimer = Math.max(0, deathTimer - dt);
-      // Integrate death particles
-      const GRAV = 400;
-      deathParticles.forEach(p => {
-        p.x    += p.vx * dt;
-        p.y    += p.vy * dt;
-        p.vy   += GRAV * dt;      // gravity pulls sparks down
-        p.vx   *= 1 - dt * 2.5;  // air drag damps horizontal velocity
-        p.alpha -= dt * 1.6;
-      });
-      deathParticles = deathParticles.filter(p => p.alpha > 0);
-      return;
+export class Player {
+    constructor(canvasHeight) {
+        this.x = 150;
+        this.y = canvasHeight - 120;
+        this.width = 42;
+        this.height = 52;
+        this.vy = 0;
+        this.gravity = 1680;
+        this.jumpForce = -720;
+        this.onGround = true;
+        this.groundY = canvasHeight - 120;
+        this.isImmune = false;
+        this.immunityTimer = 0;
+        this.isGiant = false;
+        this.giantTimer = 0;
+        this.dashVX = 0;
     }
 
-    const mods    = AISystem.getPhysicsMods();
-    const gravity = BASE_GRAVITY * mods.gravityMod;
+    update(dt) {
+        this.vy += this.gravity * dt;
+        this.y += this.vy * dt;
+        this.dashVX *= 0.88;
 
-    vy += gravity * dt;
-    y  += vy * dt;
+        if (this.y >= this.groundY) {
+            this.y = this.groundY;
+            this.vy = 0;
+            this.onGround = true;
+        }
 
-    // Hard clamp — unconditional every frame.
-    // Accumulated gravity across a large dt frame must never push
-    // the player through the floor.
-    if (y >= groundY) {
-      const wasAirborne = !onGround;
-      y        = groundY;
-      vy       = 0;
-      onGround = true;
-      if (wasAirborne) {
-        landSquash = 0.55;
-        Engine.playLand();
-      }
-    } else {
-      onGround = false;
+        if (this.immunityTimer > 0) this.immunityTimer -= dt;
+        else this.isImmune = false;
+
+        if (this.giantTimer > 0) this.giantTimer -= dt;
+        else this.isGiant = false;
     }
 
-    // Squash/stretch recovery
-    landSquash  += (1 - landSquash)  * dt * 14;
-    jumpStretch += (1 - jumpStretch) * dt * 10;
+    jump() {
+        if (this.onGround) {
+            this.vy = this.jumpForce;
+            this.onGround = false;
+            return true;
+        }
+        return false;
+    }
 
-    // Tilt: lean forward when falling
-    const tiltTarget = onGround ? 0 : Math.min(0.35, vy / 2000);
-    tiltAngle += (tiltTarget - tiltAngle) * dt * 8;
+    activateDash() {
+        this.dashVX = 520;
+    }
 
-    // Trail
-    trailPoints.unshift({ x, y, alpha: 0.6 });
-    if (trailPoints.length > 14) trailPoints.pop();
-    trailPoints.forEach(p => { p.alpha -= dt * 2; });
-  }
+    activateImmunity() {
+        this.isImmune = true;
+        this.immunityTimer = 6;
+    }
 
-  /* ── Draw ── */
-  function draw(ctx) {
-    // Always draw particles even when fully dead (they outlive the body)
-    deathParticles.forEach(p => {
-      if (p.alpha <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = Math.max(0, p.alpha);
-      ctx.shadowColor = `hsl(${p.hue},100%,60%)`;
-      ctx.shadowBlur  = 8;
-      ctx.fillStyle   = `hsl(${p.hue},100%,65%)`;
-      ctx.beginPath();
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.restore();
-    });
+    activateGrowth() {
+        this.isGiant = true;
+        this.giantTimer = 7;
+        this.width = 64;
+        this.height = 78;
+    }
 
-    if (!alive && deathTimer <= 0) return;
+    getHitbox() {
+        const scale = this.isGiant ? 1.4 : 1;
+        return {
+            x: this.x + this.dashVX * 0.016,
+            y: this.y,
+            width: this.width * scale,
+            height: this.height * scale
+        };
+    }
 
-    const alpha = alive ? 1 : Math.min(1, deathTimer / 0.3);
+    render(ctx, hue) {
+        const scale = this.isGiant ? 1.4 : 1;
+        const px = this.x + this.dashVX * 0.016;
+        const py = this.y;
 
-    // Trail
-    trailPoints.forEach((p, i) => {
-      const ta = Math.max(0, p.alpha) * alpha * 0.5;
-      if (ta <= 0) return;
-      ctx.save();
-      ctx.globalAlpha = ta;
-      ctx.fillStyle   = '#ff3b3b';
-      const scale = 1 - (i / trailPoints.length) * 0.6;
-      const tw    = SIZE_W * scale * 0.7;
-      const th    = SIZE_H * scale * 0.7;
-      ctx.fillRect(p.x - tw / 2, p.y - th, tw, th);
-      ctx.restore();
-    });
+        // glow for immunity
+        if (this.isImmune) {
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#0ff';
+        }
 
-    // Body
-    ctx.save();
-    ctx.globalAlpha = alpha;
-    ctx.translate(x, y);
-    ctx.rotate(tiltAngle);
+        ctx.fillStyle = this.isGiant ? '#0f0' : `hsl(${hue + 80}, 90%, 65%)`;
+        ctx.fillRect(px, py, this.width * scale, this.height * scale);
 
-    const sw = SIZE_W * (onGround ? landSquash + (1 - landSquash) : jumpStretch);
-    const sh = SIZE_H / (onGround ? landSquash + (1 - landSquash) : jumpStretch);
+        // head
+        ctx.fillStyle = '#111';
+        ctx.fillRect(px + 8 * scale, py + 8 * scale, 18 * scale, 18 * scale);
 
-    // Shadow
-    ctx.globalAlpha = alpha * 0.25;
-    ctx.fillStyle   = '#ff3b3b';
-    ctx.beginPath();
-    ctx.ellipse(0, 4, sw * 0.7, 5, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.globalAlpha = alpha;
+        ctx.shadowBlur = 0;
 
-    // Body gradient
-    const grad = ctx.createLinearGradient(-sw / 2, -sh, sw / 2, 0);
-    grad.addColorStop(0, '#ff6060');
-    grad.addColorStop(1, '#cc1010');
-    ctx.fillStyle    = grad;
-    ctx.shadowColor  = '#ff3b3b';
-    ctx.shadowBlur   = 18;
-    _roundRect(ctx, -sw / 2, -sh, sw, sh, 4);
-    ctx.fill();
-
-    // Eye
-    ctx.shadowBlur  = 8;
-    ctx.shadowColor = '#fff';
-    ctx.fillStyle   = '#ffffff';
-    ctx.beginPath();
-    ctx.arc(sw * 0.18, -sh * 0.72, 3.5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // Pupil
-    ctx.fillStyle = '#080c10';
-    ctx.beginPath();
-    ctx.arc(sw * 0.22, -sh * 0.70, 1.8, 0, Math.PI * 2);
-    ctx.fill();
-
-    ctx.shadowBlur = 0;
-    ctx.restore();
-  }
-
-  function _roundRect(ctx, x, y, w, h, r) {
-    ctx.beginPath();
-    ctx.moveTo(x + r, y);
-    ctx.lineTo(x + w - r, y);
-    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-    ctx.lineTo(x + w, y + h - r);
-    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-    ctx.lineTo(x + r, y + h);
-    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-    ctx.lineTo(x, y + r);
-    ctx.quadraticCurveTo(x, y, x + r, y);
-    ctx.closePath();
-  }
-
-  /* ── Bounding box (slightly forgiving) ── */
-  function getBounds() {
-    const margin = 4;
-    return {
-      x: x - SIZE_W / 2 + margin,
-      y: y - SIZE_H,
-      w: SIZE_W - margin * 2,
-      h: SIZE_H - 2,
-    };
-  }
-
-  function isAlive()  { return alive; }
-  function getPos()   { return { x, y }; }
-  function isDying()  { return !alive && deathTimer > 0; }
-
-  // Sync ground reference on window resize without a full re-init
-  function setGroundY(newGY) {
-    const wasOnGround = onGround;
-    groundY = newGY;
-    if (wasOnGround) { y = groundY; vy = 0; }
-  }
-
-  return {
-    init, jump, die, update, draw,
-    getBounds, isAlive, getPos, isDying,
-    setObstacleVisible, setGroundY,
-  };
-})();
+        // running leg lines
+        ctx.strokeStyle = '#111';
+        ctx.lineWidth = 6 * scale;
+        ctx.beginPath();
+        ctx.moveTo(px + 12 * scale, py + this.height * scale - 6);
+        ctx.lineTo(px + 18 * scale, py + this.height * scale + (Math.sin(Date.now() / 60) * 8));
+        ctx.stroke();
+    }
+}
